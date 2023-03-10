@@ -14,6 +14,19 @@ class LingFoxAI(object):
         if not messages:
             messages.append({"role": "system", "content": "LingFox AI"})
         messages.append({"role": "user", "content": question})
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages)
+        answer = response["choices"][0]["message"]["content"]
+        messages.append({"role": "assistant", "content": answer})
+        self.user_conversation[conversation_id] = messages
+        return answer
+
+    def ask2(self, question: str, conversation_id: str):
+        messages = self.user_conversation.get(conversation_id, list())
+        if not messages:
+            messages.append({"role": "system", "content": "LingFox AI"})
+        messages.append({"role": "user", "content": question})
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",

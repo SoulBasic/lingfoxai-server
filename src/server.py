@@ -14,8 +14,8 @@ import encryption
 import random
 
 app = Flask(__name__,
-            static_folder='./www',
-            template_folder="./www",
+            static_folder='../www',
+            template_folder="../www",
             static_url_path="")
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
@@ -62,7 +62,7 @@ def parse_access_token(access_token: str):
 def chat():
     rsp = flask.make_response("")
     rsp.content_type = "application/json; charset=utf-8"
-    rsp.status_code = 400
+    rsp.status_code = 200
     rsp.headers["Access-Control-Allow-Origin"] = "*"
     rsp.headers["Access-Control-Expose-Headers"] = "X-Requested-With"
     rsp.headers["Access-Control-Allow-Methods"] = "GET,POST"
@@ -71,7 +71,7 @@ def chat():
     str_uuid = request.args.get("cid", str(uuid.uuid1()))
     app.logger.error("合法请求，来源ip：" + client_ip + ", 问题：" + question)
     app.logger.info("尝试询问ChatGPT, 问题：" + question)
-    answer = bot.ask_stream(question, str_uuid)
+    answer = bot.ask(question, str_uuid)
     app.logger.info("----------\nChatGPT回答问题：" + question + "\n" + "答案:" + answer + "\n----------")
     rsp_json = json.dumps({"answer": answer, "cid": str_uuid}, ensure_ascii=False)
     rsp.data = rsp_json
@@ -112,13 +112,14 @@ def ai_chat():
         print(err)
     app.logger.error("合法请求，来源ip：" + client_ip + ", 问题：" + question)
     app.logger.info("尝试询问ChatGPT, 问题：" + question)
-    retcode, retmsg, answer = bot.ask(question, str_uuid)
+    retcode, retmsg, answer = bot.ask2(question, str_uuid)
     rsp_body["retcode"] = str(retcode)
     rsp_body["retmsg"] = retmsg
     if retcode != 0:
         rsp.data = json.dumps(rsp_body)
         return rsp
     app.logger.info("----------\nChatGPT回答问题：" + question + "\n" + "答案:" + answer + "\n----------")
+    rsp.status_code = 200
     rsp_body["answer"] = answer
     rsp_body["cid"] = str_uuid
     rsp.data = json.dumps(rsp_body, ensure_ascii=False)
@@ -307,9 +308,9 @@ dbop = db.MysqlOperator()
 
 if __name__ == '__main__':
     socketio.init_app(app, cors_allowed_origins='*')
-    handler = logging.FileHandler("./log/lingfoxai_server.log", encoding='UTF-8')
+    handler = logging.FileHandler("../log/lingfoxai_server.log", encoding='UTF-8')
     logging_format = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(logging_format)
     app.logger.addHandler(handler)
-    socketio.run(app, host='0.0.0.0', port=80, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=80)
