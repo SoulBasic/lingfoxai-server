@@ -2,10 +2,9 @@ import json
 import logging
 import uuid
 import time
-
 import flask
 from flask import Flask, request, render_template
-from flask_socketio import SocketIO, send
+from flask_socketio import SocketIO, emit
 
 import ai_bot
 import config
@@ -18,7 +17,7 @@ app = Flask(__name__,
             template_folder="../www",
             static_url_path="")
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode=None)
 app.logger.setLevel(logging.DEBUG)
 
 logging_users = dict()
@@ -283,23 +282,23 @@ def index():
     return render_template('index.html', name='index')
 
 
-chat_stream_namespace = '/stream'
+stream_namespace = "/stream"
 
 
-@socketio.on('connect', namespace=chat_stream_namespace)
-def connected_msg():
-    print('client connected.')
+@socketio.on('connect', namespace=stream_namespace)
+def on_connect():
+    print('Client connected', request.sid)
 
 
-@socketio.on('disconnect', namespace=chat_stream_namespace)
-def disconnect_msg():
-    print('client disconnected.')
+@socketio.on('disconnect', namespace=stream_namespace)
+def on_disconnect():
+    print('Client disconnected', request.sid)
 
 
-@socketio.on('json', namespace=chat_stream_namespace)
-def handle_json(question):
-    print('received json: ' + str(question))
-    send(question, json=True)
+@socketio.event(namespace=stream_namespace)
+def chat_stream(message):
+    print(message["question"])
+    bot.ask_stream(message["question"], str(uuid.uuid1()))
 
 
 ai_bot.set_api_key(config.OPENAI_APIKEY)
@@ -307,10 +306,9 @@ bot = ai_bot.LingFoxAI()
 dbop = db.MysqlOperator()
 
 if __name__ == '__main__':
-    socketio.init_app(app, cors_allowed_origins='*')
     handler = logging.FileHandler("../log/lingfoxai_server.log", encoding='UTF-8')
     logging_format = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(logging_format)
     app.logger.addHandler(handler)
-    socketio.run(app, host='0.0.0.0', port=80)
+    socketio.run(app, host='0.0.0.0', port=80, allow_unsafe_werkzeug=True)

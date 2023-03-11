@@ -1,5 +1,6 @@
 import openai
-
+from flask_socketio import SocketIO, emit
+import json
 
 def set_api_key(key: str):
     openai.api_key = key
@@ -51,6 +52,7 @@ class LingFoxAI(object):
         messages.append({"role": "user", "content": question})
         answer = ""
         try:
+            is_start = False
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
@@ -59,16 +61,19 @@ class LingFoxAI(object):
                 finish_reason = part["choices"][0]["finish_reason"]
                 if "content" in part["choices"][0]["delta"]:
                     content = part["choices"][0]["delta"]["content"]
-                    print(content)
+                    if not is_start:
+                        emit('chat_stream_answer', {'retcode': '0', 'retmsg': 'success', 'answer': '', 'is_finish': 'false'})
+                        is_start = True
+                    emit('chat_stream_answer', {'answer': content, 'is_finish': 'false'})
                     answer += content
                 elif finish_reason:
                     pass
         except openai.error.OpenAIError as e:
             print(e)
-            answer = ""
-            return -999, "lingfox ai bot internal error", answer
+            return -999, "lingfox ai bot internal error"
         except Exception as e:
             print(e)
-            answer = ""
-            return -999, "server internal error", answer
-        return 0, "success", answer
+            return -999, "server internal error"
+        print(answer)
+        emit('chat_stream_answer', {'answer': '', 'is_finish': 'true'})
+        return 0, "success"
