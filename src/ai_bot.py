@@ -45,7 +45,7 @@ class LingFoxAI(object):
         self.user_conversation[conversation_id] = messages
         return 0, "success", answer
 
-    def ask_stream(self, question: str, conversation_id: str):
+    def ask_stream(self, question: str, conversation_id: str, rsp_event:str):
         messages = self.user_conversation.get(conversation_id, list())
         if not messages:
             messages.append({"role": "system", "content": "LingFox AI"})
@@ -62,18 +62,20 @@ class LingFoxAI(object):
                 if "content" in part["choices"][0]["delta"]:
                     content = part["choices"][0]["delta"]["content"]
                     if not is_start:
-                        emit('chat_stream_answer', {'retcode': '0', 'retmsg': 'success', 'answer': '', 'is_finish': 'false'})
+                        emit(rsp_event, {'retcode': '0', 'retmsg': 'success', 'cid': conversation_id, 'answer': '', 'is_finish': 'false'})
                         is_start = True
-                    emit('chat_stream_answer', {'answer': content, 'is_finish': 'false'})
+                    emit(rsp_event, {'answer': content, 'is_finish': 'false'})
                     answer += content
                 elif finish_reason:
                     pass
+            messages.append({"role": "assistant", "content": answer})
+            self.user_conversation[conversation_id] = messages
         except openai.error.OpenAIError as e:
             print(e)
-            return -999, "lingfox ai bot internal error"
+            return -999, "lingfox ai bot internal error", answer
         except Exception as e:
             print(e)
-            return -999, "server internal error"
+            return -999, "server internal error", answer
         print(answer)
-        emit('chat_stream_answer', {'answer': '', 'is_finish': 'true'})
-        return 0, "success"
+        emit(rsp_event, {'answer': '', 'is_finish': 'true'})
+        return 0, "success", answer
